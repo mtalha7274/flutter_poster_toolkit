@@ -12,6 +12,8 @@ import 'poster_canvas.dart';
 typedef PosterImagePicker = Future<Uint8List?> Function();
 typedef PosterExportCallback = Future<void> Function(PosterExportResult result);
 
+const _toolbarColor = Color(0xff111827);
+
 class PosterEditor extends StatefulWidget {
   const PosterEditor({
     super.key,
@@ -59,28 +61,35 @@ class _PosterEditorState extends State<PosterEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return Focus(
-      autofocus: true,
-      focusNode: _focusNode,
-      onKeyEvent: _handleKeyEvent,
-      child: AnimatedBuilder(
-        animation: controller,
-        builder: (context, _) {
-          return Material(
-            color: const Color(0xfff6f7fb),
-            child: Column(
-              children: [
-                Expanded(child: _buildCanvasStage()),
-                _Toolbar(
-                  controller: controller,
-                  onAddImage: _addImage,
-                  onExport: _exportPng,
-                  onProperties: _showPropertiesSheet,
-                ),
-              ],
-            ),
-          );
-        },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        systemNavigationBarColor: _toolbarColor,
+        systemNavigationBarDividerColor: _toolbarColor,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Focus(
+        autofocus: true,
+        focusNode: _focusNode,
+        onKeyEvent: _handleKeyEvent,
+        child: AnimatedBuilder(
+          animation: controller,
+          builder: (context, _) {
+            return Material(
+              color: const Color(0xfff6f7fb),
+              child: Column(
+                children: [
+                  Expanded(child: _buildCanvasStage()),
+                  _Toolbar(
+                    controller: controller,
+                    onAddImage: _addImage,
+                    onExport: _exportPng,
+                    onProperties: _showPropertiesSheet,
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -263,89 +272,84 @@ class _Toolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xff111827),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 78,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-            child: Row(
-              children: [
-                _ToolButton(
-                  tooltip: 'Add Text',
-                  icon: Icons.title,
-                  onPressed: () => controller.addText(),
-                ),
-                _ToolButton(
-                  tooltip: 'Add Image',
-                  icon: Icons.image,
-                  onPressed: onAddImage,
-                ),
-                _ToolButton(
-                  tooltip: 'Add Rectangle',
-                  icon: Icons.crop_square,
-                  onPressed: () =>
-                      controller.addShape(PosterShapeType.rectangle),
-                ),
-                _ToolButton(
-                  tooltip: 'Add Circle',
-                  icon: Icons.circle_outlined,
-                  onPressed: () => controller.addShape(PosterShapeType.circle),
-                ),
-                _ToolButton(
-                  tooltip: 'Add Line',
-                  icon: Icons.horizontal_rule,
-                  onPressed: () => controller.addShape(PosterShapeType.line),
-                ),
-                _ToolButton(
-                  tooltip: 'Add Triangle',
-                  icon: Icons.change_history,
-                  onPressed: () =>
-                      controller.addShape(PosterShapeType.triangle),
-                ),
-                const _ToolbarDivider(),
-                _ToolButton(
-                  tooltip: 'Properties',
-                  icon: Icons.tune,
-                  onPressed: controller.selectedElement == null
-                      ? null
-                      : onProperties,
-                ),
-                _ToolButton(
-                  tooltip: 'Duplicate',
-                  icon: Icons.copy,
-                  onPressed: controller.selectedElement == null
-                      ? null
-                      : controller.duplicateSelected,
-                ),
-                _ToolButton(
-                  tooltip: 'Delete',
-                  icon: Icons.delete,
-                  onPressed: controller.selectedElement == null
-                      ? null
-                      : controller.deleteSelected,
-                ),
-                const _ToolbarDivider(),
-                _ToolButton(
-                  tooltip: 'Undo',
-                  icon: Icons.undo,
-                  onPressed: controller.canUndo ? controller.undo : null,
-                ),
-                _ToolButton(
-                  tooltip: 'Redo',
-                  icon: Icons.redo,
-                  onPressed: controller.canRedo ? controller.redo : null,
-                ),
-                const _ToolbarDivider(),
-                _ToolButton(
-                  tooltip: 'Export PNG',
-                  icon: Icons.download,
-                  onPressed: onExport,
-                ),
-              ],
-            ),
+      color: _toolbarColor,
+      child: SizedBox(
+        height: 78,
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+          child: Row(
+            children: [
+              _ToolButton(
+                tooltip: 'Add Text',
+                icon: Icons.title,
+                onPressed: () => controller.addText(),
+              ),
+              _ToolButton(
+                tooltip: 'Add Image',
+                icon: Icons.image,
+                onPressed: onAddImage,
+              ),
+              _ToolButton(
+                tooltip: 'Add Rectangle',
+                icon: Icons.crop_square,
+                onPressed: () => controller.addShape(PosterShapeType.rectangle),
+              ),
+              _ToolButton(
+                tooltip: 'Add Circle',
+                icon: Icons.circle_outlined,
+                onPressed: () => controller.addShape(PosterShapeType.circle),
+              ),
+              _ToolButton(
+                tooltip: 'Add Line',
+                icon: Icons.horizontal_rule,
+                onPressed: () => controller.addShape(PosterShapeType.line),
+              ),
+              _ToolButton(
+                tooltip: 'Add Triangle',
+                icon: Icons.change_history,
+                onPressed: () => controller.addShape(PosterShapeType.triangle),
+              ),
+              const _ToolbarDivider(),
+              _ToolButton(
+                tooltip: 'Properties',
+                icon: Icons.tune,
+                onPressed: controller.selectedElement == null
+                    ? null
+                    : onProperties,
+              ),
+              _ToolButton(
+                tooltip: 'Duplicate',
+                icon: Icons.copy,
+                onPressed: controller.selectedElement == null
+                    ? null
+                    : controller.duplicateSelected,
+              ),
+              _ToolButton(
+                tooltip: 'Delete',
+                icon: Icons.delete,
+                onPressed: controller.selectedElement == null
+                    ? null
+                    : controller.deleteSelected,
+              ),
+              const _ToolbarDivider(),
+              _ToolButton(
+                tooltip: 'Undo',
+                icon: Icons.undo,
+                onPressed: controller.canUndo ? controller.undo : null,
+              ),
+              _ToolButton(
+                tooltip: 'Redo',
+                icon: Icons.redo,
+                onPressed: controller.canRedo ? controller.redo : null,
+              ),
+              const _ToolbarDivider(),
+              _ToolButton(
+                tooltip: 'Export PNG',
+                icon: Icons.download,
+                onPressed: onExport,
+              ),
+            ],
           ),
         ),
       ),
@@ -738,11 +742,27 @@ class _TextProperties extends StatelessWidget {
           onChanged: (value) =>
               controller.updateElement(element.copyWith(fontSize: value)),
         ),
+        const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: element.fontFamily,
           decoration: _posterInputDecoration('Font family'),
           items:
-              const ['Roboto', 'Oswald', 'Montserrat', 'Inter', 'Merriweather']
+              const [
+                    'Roboto',
+                    'Inter',
+                    'Nunito',
+                    'Quicksand',
+                    'Comic Neue',
+                    'Fredoka',
+                    'Baloo 2',
+                    'DynaPuff',
+                    'Caveat',
+                    'Pacifico',
+                    'Lobster',
+                    'Oswald',
+                    'Montserrat',
+                    'Merriweather',
+                  ]
                   .map(
                     (font) => DropdownMenuItem(value: font, child: Text(font)),
                   )
@@ -753,6 +773,7 @@ class _TextProperties extends StatelessWidget {
             }
           },
         ),
+        const SizedBox(height: 12),
         DropdownButtonFormField<FontWeight>(
           initialValue: element.fontWeight,
           decoration: _posterInputDecoration('Weight'),
