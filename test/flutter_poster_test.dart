@@ -52,14 +52,14 @@ void main() {
     expect(circle.size.width, circle.size.height);
   });
 
-  test('resized circle shapes stay perfect circles', () {
+  test('circle shapes can be resized freely after being added', () {
     final controller = PosterController();
     controller.addShape(PosterShapeType.circle);
 
     controller.resizeSelected(const Offset(40, 12));
 
     final circle = controller.selectedElement!;
-    expect(circle.size.width, circle.size.height);
+    expect(circle.size.width, isNot(circle.size.height));
   });
 
   test('canvas resizing clamps elements inside bounds', () {
@@ -175,7 +175,7 @@ void main() {
     await tester.tap(find.byTooltip('Properties'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Content'), findsOneWidget);
+    expect(find.text('Font size'), findsOneWidget);
   });
 
   testWidgets('selected element quick actions are tappable', (tester) async {
@@ -188,7 +188,7 @@ void main() {
     await tester.tap(find.byTooltip('More'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Content'), findsOneWidget);
+    expect(find.text('Font size'), findsOneWidget);
   });
 
   testWidgets('tapping the empty canvas clears selection', (tester) async {

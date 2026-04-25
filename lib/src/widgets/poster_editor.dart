@@ -141,13 +141,26 @@ class _PosterEditorState extends State<PosterEditor> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) {
-        final height = MediaQuery.sizeOf(context).height * 0.62;
-        return SizedBox(
-          height: height.clamp(360, 620).toDouble(),
-          child: AnimatedBuilder(
-            animation: controller,
-            builder: (context, _) => _PropertiesPanel(controller: controller),
-          ),
+        final screenHeight = MediaQuery.sizeOf(context).height;
+        final maxHeight = (screenHeight * 0.62).clamp(360, 620).toDouble();
+        final maxChildSize = (maxHeight / screenHeight)
+            .clamp(0.25, 1.0)
+            .toDouble();
+        final minChildSize = math.min(0.32, maxChildSize);
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: maxChildSize,
+          maxChildSize: maxChildSize,
+          minChildSize: minChildSize,
+          builder: (context, scrollController) {
+            return AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) => _PropertiesPanel(
+                controller: controller,
+                scrollController: scrollController,
+              ),
+            );
+          },
         );
       },
     );
@@ -400,9 +413,10 @@ class _ToolButton extends StatelessWidget {
 }
 
 class _PropertiesPanel extends StatelessWidget {
-  const _PropertiesPanel({required this.controller});
+  const _PropertiesPanel({required this.controller, this.scrollController});
 
   final PosterController controller;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -420,6 +434,7 @@ class _PropertiesPanel extends StatelessWidget {
               ),
             )
           : ListView(
+              controller: scrollController,
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
               children: [
                 ListTile(
@@ -711,7 +726,7 @@ class _TextProperties extends StatelessWidget {
           initialValue: element.text,
           minLines: 2,
           maxLines: 4,
-          decoration: const InputDecoration(labelText: 'Content'),
+          decoration: _posterInputDecoration('Content'),
           onChanged: (value) =>
               controller.updateElement(element.copyWith(text: value)),
         ),
@@ -725,7 +740,7 @@ class _TextProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<String>(
           initialValue: element.fontFamily,
-          decoration: const InputDecoration(labelText: 'Font family'),
+          decoration: _posterInputDecoration('Font family'),
           items:
               const ['Roboto', 'Oswald', 'Montserrat', 'Inter', 'Merriweather']
                   .map(
@@ -740,7 +755,7 @@ class _TextProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<FontWeight>(
           initialValue: element.fontWeight,
-          decoration: const InputDecoration(labelText: 'Weight'),
+          decoration: _posterInputDecoration('Weight'),
           items: const [
             DropdownMenuItem(value: FontWeight.normal, child: Text('Regular')),
             DropdownMenuItem(value: FontWeight.w600, child: Text('Semi bold')),
@@ -756,9 +771,8 @@ class _TextProperties extends StatelessWidget {
         Row(
           children: [
             Expanded(
-              child: CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Italic'),
+              child: _LabeledCheckbox(
+                label: 'Italic',
                 value: element.italic,
                 onChanged: (value) => controller.updateElement(
                   element.copyWith(italic: value ?? false),
@@ -766,9 +780,8 @@ class _TextProperties extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: CheckboxListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text('Underline'),
+              child: _LabeledCheckbox(
+                label: 'Underline',
                 value: element.underline,
                 onChanged: (value) => controller.updateElement(
                   element.copyWith(underline: value ?? false),
@@ -785,7 +798,7 @@ class _TextProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<TextAlign>(
           initialValue: element.alignment,
-          decoration: const InputDecoration(labelText: 'Alignment'),
+          decoration: _posterInputDecoration('Alignment'),
           items: const [
             DropdownMenuItem(value: TextAlign.left, child: Text('Left')),
             DropdownMenuItem(value: TextAlign.center, child: Text('Center')),
@@ -830,7 +843,7 @@ class _ImageProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<PosterImageFit>(
           initialValue: element.fit,
-          decoration: const InputDecoration(labelText: 'Fit'),
+          decoration: _posterInputDecoration('Fit'),
           items: const [
             DropdownMenuItem(value: PosterImageFit.cover, child: Text('Cover')),
             DropdownMenuItem(
@@ -894,6 +907,42 @@ class _ShapeProperties extends StatelessWidget {
   }
 }
 
+class _LabeledCheckbox extends StatelessWidget {
+  const _LabeledCheckbox({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => onChanged(!value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Checkbox(
+              value: value,
+              onChanged: onChanged,
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            const SizedBox(width: 8),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ColorProperty extends StatelessWidget {
   const _ColorProperty({
     required this.label,
@@ -912,16 +961,17 @@ class _ColorProperty extends StatelessWidget {
       minVerticalPadding: 10,
       title: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
       trailing: InkWell(
-        borderRadius: BorderRadius.circular(22),
+        customBorder: const CircleBorder(),
         onTap: () async {
-          var nextColor = color;
+          final pickerColor = color.a == 0 ? const Color(0xffff8a00) : color;
+          var nextColor = pickerColor;
           await showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
               title: Text(label),
               content: SingleChildScrollView(
                 child: ColorPicker(
-                  pickerColor: color,
+                  pickerColor: pickerColor,
                   onColorChanged: (value) => nextColor = value,
                   enableAlpha: true,
                   displayThumbColor: true,
@@ -944,11 +994,11 @@ class _ColorProperty extends StatelessWidget {
           );
         },
         child: Container(
-          width: 52,
+          width: 44,
           height: 44,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(16),
+            shape: BoxShape.circle,
             border: Border.all(color: const Color(0xffe5e7eb), width: 2),
           ),
         ),
@@ -999,13 +1049,42 @@ class _SliderProperty extends StatelessWidget {
             ),
           ],
         ),
-        Slider(
-          value: value.clamp(min, max),
-          min: min,
-          max: max,
-          onChanged: onChanged,
+        SliderTheme(
+          data: SliderTheme.of(context).copyWith(
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+          ),
+          child: Slider(
+            value: value.clamp(min, max),
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
         ),
       ],
     );
   }
+}
+
+InputDecoration _posterInputDecoration(String hintText) {
+  const borderRadius = BorderRadius.all(Radius.circular(14));
+  const borderSide = BorderSide(color: Color(0xffd1d5db));
+  return const InputDecoration(
+    filled: true,
+    fillColor: Color(0xfff9fafb),
+    hintStyle: TextStyle(color: Color(0xff9ca3af)),
+    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+    border: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: borderSide,
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: borderSide,
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: borderRadius,
+      borderSide: BorderSide(color: Color(0xff2563eb), width: 1.6),
+    ),
+  ).copyWith(hintText: hintText);
 }

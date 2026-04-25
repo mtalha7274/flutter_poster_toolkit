@@ -41,10 +41,10 @@ class PosterCanvas extends StatelessWidget {
               boxShadow: showEditorChrome
                   ? const [
                       BoxShadow(
-                        color: Color(0x22000000),
-                        blurRadius: 34,
-                        spreadRadius: 8,
-                        offset: Offset(0, 8),
+                        color: Color(0x1a000000),
+                        blurRadius: 28,
+                        spreadRadius: 4,
+                        offset: Offset(0, 3),
                       ),
                     ]
                   : null,

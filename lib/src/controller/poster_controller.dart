@@ -336,17 +336,10 @@ class PosterController extends ChangeNotifier {
 
   PosterElement _constrainElement(PosterElement element, {Size? canvasSize}) {
     final canvas = canvasSize ?? _document.canvasSize;
-    final size = switch (element) {
-      ShapeElement(shape: PosterShapeType.circle) => Size.square(
-        element.size.longestSide
-            .clamp(12, math.min(canvas.width, canvas.height))
-            .toDouble(),
-      ),
-      _ => Size(
-        element.size.width.clamp(12, canvas.width).toDouble(),
-        element.size.height.clamp(12, canvas.height).toDouble(),
-      ),
-    };
+    final size = Size(
+      element.size.width.clamp(12, canvas.width).toDouble(),
+      element.size.height.clamp(12, canvas.height).toDouble(),
+    );
     final position = _clampPosition(element, size, canvas);
     return element.copyWithBase(position: position, size: size);
   }
