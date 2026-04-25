@@ -175,16 +175,23 @@ class PosterController extends ChangeNotifier {
       return;
     }
     beginInteraction();
+    final localDelta = _rotateOffset(delta, -element.rotation);
+    final newSize = Size(
+      (element.size.width + localDelta.dx)
+          .clamp(12, _document.canvasSize.width)
+          .toDouble(),
+      (element.size.height + localDelta.dy)
+          .clamp(12, _document.canvasSize.height)
+          .toDouble(),
+    );
+    final visualTopLeft = _elementVisualTopLeft(element);
+    final newHalfSize = Offset(newSize.width / 2, newSize.height / 2);
+    final newPosition =
+        visualTopLeft +
+        _rotateOffset(newHalfSize, element.rotation) -
+        newHalfSize;
     updateElement(
-      element.copyWithBase(
-        size: Size(
-          (element.size.width + delta.dx).clamp(12, _document.canvasSize.width),
-          (element.size.height + delta.dy).clamp(
-            12,
-            _document.canvasSize.height,
-          ),
-        ),
-      ),
+      element.copyWithBase(position: newPosition, size: newSize),
       recordHistory: false,
     );
   }
@@ -346,6 +353,21 @@ class PosterController extends ChangeNotifier {
       center.dy.clamp(halfHeight, canvas.height - halfHeight).toDouble(),
     );
     return clampedCenter - Offset(size.width / 2, size.height / 2);
+  }
+
+  Offset _elementVisualTopLeft(PosterElement element) {
+    final halfSize = Offset(element.size.width / 2, element.size.height / 2);
+    final center = element.position + halfSize;
+    return center + _rotateOffset(-halfSize, element.rotation);
+  }
+
+  Offset _rotateOffset(Offset offset, double angle) {
+    final cosA = math.cos(angle);
+    final sinA = math.sin(angle);
+    return Offset(
+      offset.dx * cosA - offset.dy * sinA,
+      offset.dx * sinA + offset.dy * cosA,
+    );
   }
 
   PosterElement _copyWithId(PosterElement element, String id) {

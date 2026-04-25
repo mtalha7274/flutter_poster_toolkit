@@ -153,14 +153,13 @@ class _PosterEditorState extends State<PosterEditor> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canvasSize = controller.document.canvasSize;
+        final availableSize = Size(
+          math.max(120, constraints.maxWidth - 8),
+          math.max(120, constraints.maxHeight - 8),
+        );
         final scale = math.min(
-          1.08,
-          math.min(
-            (constraints.maxWidth - 8).clamp(120, double.infinity) /
-                canvasSize.width,
-            (constraints.maxHeight - 8).clamp(120, double.infinity) /
-                canvasSize.height,
-          ),
+          availableSize.width / canvasSize.width,
+          availableSize.height / canvasSize.height,
         );
         final scaledSize = Size(
           canvasSize.width * scale,
@@ -179,14 +178,21 @@ class _PosterEditorState extends State<PosterEditor> {
                   child: SizedBox(
                     width: scaledSize.width,
                     height: scaledSize.height,
-                    child: Transform.scale(
-                      scale: scale,
+                    child: OverflowBox(
                       alignment: Alignment.topLeft,
-                      child: PosterCanvas(
-                        controller: controller,
-                        interactionScale: scale,
-                        onInteract: () {},
-                        onMorePressed: _showPropertiesSheet,
+                      minWidth: canvasSize.width,
+                      maxWidth: canvasSize.width,
+                      minHeight: canvasSize.height,
+                      maxHeight: canvasSize.height,
+                      child: Transform.scale(
+                        scale: scale,
+                        alignment: Alignment.topLeft,
+                        child: PosterCanvas(
+                          controller: controller,
+                          interactionScale: scale,
+                          onInteract: () {},
+                          onMorePressed: _showPropertiesSheet,
+                        ),
                       ),
                     ),
                   ),

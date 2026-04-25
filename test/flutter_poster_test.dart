@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +73,24 @@ void main() {
     expect(controller.selectedElement!.position, before);
   });
 
+  test('resizing rotated elements uses their local axes', () {
+    final controller = PosterController(
+      document: PosterDocument.empty(canvasSize: const Size(800, 800)),
+    );
+    final shape = controller.addShape(
+      PosterShapeType.rectangle,
+      position: const Offset(240, 240),
+      size: const Size(180, 110),
+    );
+    controller.updateElement(shape.copyWith(rotation: math.pi / 2));
+
+    final before = controller.selectedElement!.size;
+    controller.resizeSelected(const Offset(32, 0));
+
+    expect(controller.selectedElement!.size.width, closeTo(before.width, 0.01));
+    expect(controller.selectedElement!.size.height, lessThan(before.height));
+  });
+
   test('flip flags are stored on elements', () {
     final controller = PosterController();
     final text = controller.addText();
@@ -92,6 +112,31 @@ void main() {
     expect(controller.document.elements, isEmpty);
     expect(find.byTooltip('Add Text'), findsOneWidget);
     expect(find.byTooltip('Show tools'), findsNothing);
+  });
+
+  testWidgets('editor canvas is centered and scaled once', (tester) async {
+    final controller = PosterController(
+      document: PosterDocument.empty(canvasSize: const Size(600, 820)),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 360,
+            height: 720,
+            child: PosterEditor(controller: controller),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final editorRect = tester.getRect(find.byType(PosterEditor));
+    final canvasRect = tester.getRect(find.byType(PosterCanvas));
+
+    expect(canvasRect.width, closeTo(352, 1));
+    expect(canvasRect.center.dx, closeTo(editorRect.center.dx, 1));
   });
 
   testWidgets('bottom toolbar adds items and opens selected properties', (

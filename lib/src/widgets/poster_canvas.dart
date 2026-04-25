@@ -258,24 +258,27 @@ class _ElementHandlesLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final centerX = element.position.dx + element.size.width / 2;
+    final center =
+        element.position +
+        Offset(element.size.width / 2, element.size.height / 2);
+    final rotateHandleCenter =
+        center +
+        _rotateOffset(
+          Offset(0, -element.size.height / 2 - 84),
+          element.rotation,
+        );
+    final resizeHandleCenter =
+        center +
+        _rotateOffset(
+          Offset(element.size.width / 2 + 25, element.size.height / 2 + 25),
+          element.rotation,
+        );
     return Stack(
       clipBehavior: Clip.none,
       children: [
         Positioned(
-          left: centerX - 20,
-          top: math.max(8.0, element.position.dy - 104),
-          width: 40,
-          height: 40,
-          child: _RotateHandle(
-            interactionScale: interactionScale,
-            onRotate: onRotate,
-            onEnd: onEnd,
-          ),
-        ),
-        Positioned(
-          left: element.position.dx + element.size.width + 8,
-          top: element.position.dy + element.size.height + 8,
+          left: resizeHandleCenter.dx - 17,
+          top: resizeHandleCenter.dy - 17,
           width: 34,
           height: 34,
           child: _ResizeHandle(
@@ -284,7 +287,27 @@ class _ElementHandlesLayer extends StatelessWidget {
             onEnd: onEnd,
           ),
         ),
+        Positioned(
+          left: rotateHandleCenter.dx - 20,
+          top: math.max(8.0, rotateHandleCenter.dy - 20),
+          width: 40,
+          height: 40,
+          child: _RotateHandle(
+            interactionScale: interactionScale,
+            onRotate: onRotate,
+            onEnd: onEnd,
+          ),
+        ),
       ],
+    );
+  }
+
+  Offset _rotateOffset(Offset offset, double angle) {
+    final cosA = math.cos(angle);
+    final sinA = math.sin(angle);
+    return Offset(
+      offset.dx * cosA - offset.dy * sinA,
+      offset.dx * sinA + offset.dy * cosA,
     );
   }
 }
