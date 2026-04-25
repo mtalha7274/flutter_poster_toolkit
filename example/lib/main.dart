@@ -46,12 +46,10 @@ class _PosterExampleAppState extends State<PosterExampleApp> {
         ),
       ),
       home: Scaffold(
-        body: SafeArea(
-          child: PosterEditor(
-            controller: _controller,
-            onPickImage: _pickImage,
-            onExportPng: _savePng,
-          ),
+        body: PosterEditor(
+          controller: _controller,
+          onPickImage: _pickImage,
+          onExportPng: _savePng,
         ),
       ),
     );
