@@ -103,10 +103,15 @@ class PosterController extends ChangeNotifier {
     Offset position = const Offset(90, 120),
     Size size = const Size(180, 110),
   }) {
+    final elementSize = switch (shape) {
+      PosterShapeType.line => const Size(220, 16),
+      PosterShapeType.circle => Size.square(math.max(size.width, size.height)),
+      _ => size,
+    };
     final element = ShapeElement(
       id: _uuid.v4(),
       position: position,
-      size: shape == PosterShapeType.line ? const Size(220, 16) : size,
+      size: elementSize,
       shape: shape,
     );
     _addElement(element);
@@ -331,10 +336,17 @@ class PosterController extends ChangeNotifier {
 
   PosterElement _constrainElement(PosterElement element, {Size? canvasSize}) {
     final canvas = canvasSize ?? _document.canvasSize;
-    final size = Size(
-      element.size.width.clamp(12, canvas.width).toDouble(),
-      element.size.height.clamp(12, canvas.height).toDouble(),
-    );
+    final size = switch (element) {
+      ShapeElement(shape: PosterShapeType.circle) => Size.square(
+        element.size.longestSide
+            .clamp(12, math.min(canvas.width, canvas.height))
+            .toDouble(),
+      ),
+      _ => Size(
+        element.size.width.clamp(12, canvas.width).toDouble(),
+        element.size.height.clamp(12, canvas.height).toDouble(),
+      ),
+    };
     final position = _clampPosition(element, size, canvas);
     return element.copyWithBase(position: position, size: size);
   }

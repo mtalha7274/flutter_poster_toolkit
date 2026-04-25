@@ -135,7 +135,11 @@ class _PosterEditorState extends State<PosterEditor> {
       showDragHandle: true,
       useSafeArea: true,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: const Color(0xfff8fafc),
+      clipBehavior: Clip.antiAlias,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) {
         final height = MediaQuery.sizeOf(context).height * 0.62;
         return SizedBox(
@@ -170,40 +174,64 @@ class _PosterEditorState extends State<PosterEditor> {
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () => controller.select(null),
-            child: Stack(
-              fit: StackFit.expand,
-              clipBehavior: Clip.none,
-              children: [
-                Center(
-                  child: SizedBox(
-                    width: scaledSize.width,
-                    height: scaledSize.height,
-                    child: OverflowBox(
-                      alignment: Alignment.topLeft,
-                      minWidth: canvasSize.width,
-                      maxWidth: canvasSize.width,
-                      minHeight: canvasSize.height,
-                      maxHeight: canvasSize.height,
-                      child: Transform.scale(
-                        scale: scale,
+            child: CustomPaint(
+              painter: const _StageDotsPainter(),
+              child: Stack(
+                fit: StackFit.expand,
+                clipBehavior: Clip.none,
+                children: [
+                  Center(
+                    child: SizedBox(
+                      width: scaledSize.width,
+                      height: scaledSize.height,
+                      child: OverflowBox(
                         alignment: Alignment.topLeft,
-                        child: PosterCanvas(
-                          controller: controller,
-                          interactionScale: scale,
-                          onInteract: () {},
-                          onMorePressed: _showPropertiesSheet,
+                        minWidth: canvasSize.width,
+                        maxWidth: canvasSize.width,
+                        minHeight: canvasSize.height,
+                        maxHeight: canvasSize.height,
+                        child: Transform.scale(
+                          scale: scale,
+                          alignment: Alignment.topLeft,
+                          child: PosterCanvas(
+                            controller: controller,
+                            interactionScale: scale,
+                            onInteract: () => controller.select(null),
+                            onMorePressed: _showPropertiesSheet,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );
       },
     );
   }
+}
+
+class _StageDotsPainter extends CustomPainter {
+  const _StageDotsPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const spacing = 24.0;
+    final paint = Paint()
+      ..color = const Color(0xffd6dae3)
+      ..style = PaintingStyle.fill;
+
+    for (var y = spacing / 2; y < size.height; y += spacing) {
+      for (var x = spacing / 2; x < size.width; x += spacing) {
+        canvas.drawCircle(Offset(x, y), 1.15, paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StageDotsPainter oldDelegate) => false;
 }
 
 class _Toolbar extends StatelessWidget {

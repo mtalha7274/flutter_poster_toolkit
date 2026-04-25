@@ -41,9 +41,10 @@ class PosterCanvas extends StatelessWidget {
               boxShadow: showEditorChrome
                   ? const [
                       BoxShadow(
-                        color: Color(0x33000000),
-                        blurRadius: 20,
-                        offset: Offset(0, 12),
+                        color: Color(0x22000000),
+                        blurRadius: 34,
+                        spreadRadius: 8,
+                        offset: Offset(0, 8),
                       ),
                     ]
                   : null,
@@ -289,10 +290,11 @@ class _ElementHandlesLayer extends StatelessWidget {
         ),
         Positioned(
           left: rotateHandleCenter.dx - 20,
-          top: math.max(8.0, rotateHandleCenter.dy - 20),
+          top: rotateHandleCenter.dy - 20,
           width: 40,
           height: 40,
           child: _RotateHandle(
+            handleOffsetFromElementCenter: rotateHandleCenter - center,
             interactionScale: interactionScale,
             onRotate: onRotate,
             onEnd: onEnd,
@@ -608,11 +610,13 @@ class _ResizeHandle extends StatelessWidget {
 
 class _RotateHandle extends StatefulWidget {
   const _RotateHandle({
+    required this.handleOffsetFromElementCenter,
     required this.interactionScale,
     required this.onRotate,
     required this.onEnd,
   });
 
+  final Offset handleOffsetFromElementCenter;
   final double interactionScale;
   final ValueChanged<double> onRotate;
   final VoidCallback onEnd;
@@ -622,26 +626,30 @@ class _RotateHandle extends StatefulWidget {
 }
 
 class _RotateHandleState extends State<_RotateHandle> {
-  Offset? _previous;
+  double? _previousAngle;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onPanStart: (details) => _previous = details.localPosition,
+      onPanStart: (details) {
+        _previousAngle = _angleFor(details.globalPosition);
+      },
       onPanUpdate: (details) {
-        final previous = _previous;
-        _previous = details.localPosition;
+        final previous = _previousAngle;
+        final current = _angleFor(details.globalPosition);
+        _previousAngle = current;
         if (previous == null) {
           return;
         }
-        widget.onRotate(
-          (details.delta.dx / widget.interactionScale) * math.pi / 180,
-        );
+        widget.onRotate(_normalizeRadians(current - previous));
       },
       onPanEnd: (_) {
-        _previous = null;
+        _previousAngle = null;
         widget.onEnd();
+      },
+      onPanCancel: () {
+        _previousAngle = null;
       },
       child: Container(
         decoration: BoxDecoration(
@@ -663,5 +671,27 @@ class _RotateHandleState extends State<_RotateHandle> {
         ),
       ),
     );
+  }
+
+  double _angleFor(Offset globalPosition) {
+    final box = context.findRenderObject()! as RenderBox;
+    final handleCenter = box.localToGlobal(
+      Offset(box.size.width / 2, box.size.height / 2),
+    );
+    final elementCenter =
+        handleCenter -
+        widget.handleOffsetFromElementCenter * widget.interactionScale;
+    final vector = globalPosition - elementCenter;
+    return math.atan2(vector.dy, vector.dx);
+  }
+
+  double _normalizeRadians(double radians) {
+    while (radians <= -math.pi) {
+      radians += math.pi * 2;
+    }
+    while (radians > math.pi) {
+      radians -= math.pi * 2;
+    }
+    return radians;
   }
 }

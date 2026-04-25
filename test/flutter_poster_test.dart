@@ -44,6 +44,24 @@ void main() {
     expect(controller.document.elements, hasLength(2));
   });
 
+  test('new circle shapes are perfect circles', () {
+    final controller = PosterController();
+
+    final circle = controller.addShape(PosterShapeType.circle);
+
+    expect(circle.size.width, circle.size.height);
+  });
+
+  test('resized circle shapes stay perfect circles', () {
+    final controller = PosterController();
+    controller.addShape(PosterShapeType.circle);
+
+    controller.resizeSelected(const Offset(40, 12));
+
+    final circle = controller.selectedElement!;
+    expect(circle.size.width, circle.size.height);
+  });
+
   test('canvas resizing clamps elements inside bounds', () {
     final controller = PosterController(
       document: PosterDocument.empty(canvasSize: const Size(500, 500)),
@@ -173,6 +191,31 @@ void main() {
     expect(find.text('Content'), findsOneWidget);
   });
 
+  testWidgets('tapping the empty canvas clears selection', (tester) async {
+    final controller = PosterController();
+    final shape = controller.addShape(PosterShapeType.rectangle);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: PosterCanvas(
+            controller: controller,
+            onInteract: () => controller.select(null),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(controller.selectedElementId, shape.id);
+
+    await tester.tapAt(const Offset(12, 12));
+    await tester.pumpAndSettle();
+
+    expect(controller.selectedElementId, isNull);
+  });
+
   testWidgets('selected element drag moves the element instead of the stage', (
     tester,
   ) async {
@@ -224,6 +267,34 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(controller.selectedElement!.rotation, greaterThan(before));
+  });
+
+  testWidgets('rotate handle stays smooth across the angle boundary', (
+    tester,
+  ) async {
+    final controller = PosterController();
+    final shape = controller.addShape(PosterShapeType.rectangle);
+    controller.updateElement(shape.copyWith(rotation: math.pi * 1.5));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: PosterCanvas(controller: controller),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final before = controller.selectedElement!.rotation;
+    final center =
+        shape.position + Offset(shape.size.width / 2, shape.size.height / 2);
+    final handleCenter = center + const Offset(-139, 0);
+    await tester.dragFrom(handleCenter, const Offset(0, -40));
+    await tester.pumpAndSettle();
+
+    expect(controller.selectedElement!.rotation, greaterThan(before));
+    expect(controller.selectedElement!.rotation - before, lessThan(math.pi));
   });
 
   testWidgets('selected element resize handle changes size', (tester) async {
