@@ -2,17 +2,9 @@
 
 A reusable Flutter poster editor for Android and iOS apps. It includes an interactive editor, editable text/image/shape elements, undo/redo, and PNG export of the poster canvas.
 
-## Features
-
-- Centered poster canvas with a dotted editor background.
-- Mobile-first editor shell with a bottom toolbar.
-- Editable element types: text, images, rectangles, circles, lines, and triangles.
-- Drag, resize, rotate, select, lock, duplicate, delete, and layer ordering actions.
-- Inline text editing on the canvas.
-- Quick actions and draggable bottom-sheet properties.
-- Undo/redo history and keyboard shortcuts where supported.
-- Canvas-only PNG export.
-- Host-provided image picking and export saving.
+<p align="center">
+  <img src="https://s13.gifyu.com/images/bqJQJ.jpg" alt="flutter_poster_toolkit demo" />
+</p>
 
 ## Getting Started
 
@@ -27,7 +19,7 @@ class PosterScreen extends StatefulWidget {
   State<PosterScreen> createState() => _PosterScreenState();
 }
 
-class _PosterScreenState extends State<PosterScreen> {/
+class _PosterScreenState extends State<PosterScreen> {
   final controller = PosterController();
 
   @override
