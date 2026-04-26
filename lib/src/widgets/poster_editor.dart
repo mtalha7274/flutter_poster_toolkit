@@ -64,13 +64,16 @@ class _PosterEditorState extends State<PosterEditor> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
+    final toolbarLuminance = theme.toolbar.backgroundColor.computeLuminance();
     return PosterEditorThemeScope(
       theme: theme,
       child: AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle(
           systemNavigationBarColor: theme.toolbar.backgroundColor,
           systemNavigationBarDividerColor: theme.toolbar.backgroundColor,
-          systemNavigationBarIconBrightness: Brightness.light,
+          systemNavigationBarIconBrightness: toolbarLuminance > 0.5
+              ? Brightness.dark
+              : Brightness.light,
         ),
         child: Focus(
           autofocus: true,
