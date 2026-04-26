@@ -1,5 +1,5 @@
 name: flutter_poster_example
-description: Example app for the flutter_poster package.
+description: Example app for creating posters and flyers.
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  flutter_poster:
+  flutter_poster_toolkit:
     path: ..
   image_gallery_saver_plus: ^4.0.1
   image_picker: ^1.2.1
