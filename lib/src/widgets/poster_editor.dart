@@ -558,8 +558,10 @@ class _PropertiesPanel extends StatelessWidget {
                         theme.properties.lockButtonSize,
                         theme.properties.lockButtonSize,
                       ),
-                      backgroundColor: theme.properties.lockButtonBackgroundColor,
-                      foregroundColor: theme.properties.lockButtonForegroundColor,
+                      backgroundColor:
+                          theme.properties.lockButtonBackgroundColor,
+                      foregroundColor:
+                          theme.properties.lockButtonForegroundColor,
                     ),
                     onPressed: controller.toggleSelectedLock,
                     icon: Icon(element.locked ? Icons.lock : Icons.lock_open),
@@ -1147,47 +1149,27 @@ class _HexColorPickerDialogState extends State<_HexColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = PosterEditorThemeScope.of(context);
     return AlertDialog(
       title: Text(widget.label),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ColorPicker(
-              pickerColor: _color,
-              onColorChanged: (value) {
-                setState(() {
-                  _color = value;
-                  _hexController.text = _hexFromColor(value);
-                  _hexController.selection = TextSelection.collapsed(
-                    offset: _hexController.text.length,
-                  );
-                });
-              },
-              enableAlpha: true,
-              displayThumbColor: true,
-            ),
-            TextField(
-              controller: _hexController,
-              decoration: posterInputDecoration(
-                theme.input,
-                'Hex color (#RRGGBB or #AARRGGBB)',
-              ),
-              textCapitalization: TextCapitalization.characters,
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F#]')),
-              ],
-              onChanged: (value) {
-                final parsed = _tryParseHexColor(value);
-                if (parsed == null) {
-                  return;
-                }
-                setState(() => _color = parsed);
-              },
-            ),
-          ],
-        ),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ColorPicker(
+            pickerColor: _color,
+            onColorChanged: (value) {
+              setState(() {
+                _color = value;
+                _hexController.text = _hexFromColor(value);
+                _hexController.selection = TextSelection.collapsed(
+                  offset: _hexController.text.length,
+                );
+              });
+            },
+            enableAlpha: true,
+            displayThumbColor: true,
+            hexInputBar: true,
+          ),
+        ],
       ),
       actions: [
         TextButton(
@@ -1274,22 +1256,4 @@ String _hexFromColor(Color color) {
   final value = alpha == 0xff ? rgb : argb;
   final length = alpha == 0xff ? 6 : 8;
   return '#${value.toRadixString(16).padLeft(length, '0').toUpperCase()}';
-}
-
-Color? _tryParseHexColor(String input) {
-  var hex = input.trim().replaceAll('#', '');
-  if (hex.length == 3) {
-    hex = hex.split('').map((value) => '$value$value').join();
-  }
-  if (hex.length == 6) {
-    hex = 'ff$hex';
-  }
-  if (hex.length != 8) {
-    return null;
-  }
-  final value = int.tryParse(hex, radix: 16);
-  if (value == null) {
-    return null;
-  }
-  return Color(value);
 }
