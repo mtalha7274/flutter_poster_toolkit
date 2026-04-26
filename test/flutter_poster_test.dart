@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_poster/flutter_poster.dart';
+import 'package:flutter_poster_toolkit/flutter_poster.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

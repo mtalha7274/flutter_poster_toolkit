@@ -1,5 +1,5 @@
-name: flutter_poster
-description: A reusable Flutter poster editor package with editable text, image, and shape elements.
+name: flutter_poster_toolkit
+description: A Flutter package for creating posters and flyers.
 version: 0.1.0
 homepage:
 
