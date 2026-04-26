@@ -6,6 +6,7 @@ import 'package:screenshot/screenshot.dart';
 
 import '../controller/poster_controller.dart';
 import '../models/poster_element.dart';
+import '../theme/poster_editor_theme.dart';
 
 class PosterCanvas extends StatelessWidget {
   const PosterCanvas({
@@ -31,6 +32,7 @@ class PosterCanvas extends StatelessWidget {
         final document = controller.document;
         final showEditorChrome = showSelection;
         final selectedElement = controller.selectedElement;
+        final theme = PosterEditorThemeScope.of(context);
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: onInteract,
@@ -39,14 +41,7 @@ class PosterCanvas extends StatelessWidget {
             height: document.canvasSize.height,
             decoration: BoxDecoration(
               boxShadow: showEditorChrome
-                  ? const [
-                      BoxShadow(
-                        color: Color(0x1a000000),
-                        blurRadius: 28,
-                        spreadRadius: 4,
-                        offset: Offset(0, 3),
-                      ),
-                    ]
+                  ? [theme.canvasChrome.dropShadow]
                   : null,
             ),
             child: Stack(
@@ -206,6 +201,7 @@ class _ElementLayerState extends State<_ElementLayer> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     final canDrag = widget.selected && !widget.element.locked && !_editingText;
     return Positioned(
       left: widget.element.position.dx,
@@ -253,7 +249,7 @@ class _ElementLayerState extends State<_ElementLayer> {
                   child: IgnorePointer(
                     child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.86),
+                        color: theme.selection.inlineTextEditorOverlayColor,
                       ),
                     ),
                   ),
@@ -282,9 +278,9 @@ class _ElementLayerState extends State<_ElementLayer> {
                       decoration: BoxDecoration(
                         border: Border.all(
                           color: widget.element.locked
-                              ? const Color(0xfff59e0b)
-                              : const Color(0xff7c3aed),
-                          width: 2,
+                              ? theme.selection.lockedBorderColor
+                              : theme.selection.borderColor,
+                          width: theme.selection.borderWidth,
                         ),
                       ),
                     ),
@@ -460,27 +456,31 @@ class _ElementQuickActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return Center(
       child: Material(
-        color: const Color(0xff171124),
-        elevation: 10,
-        borderRadius: BorderRadius.circular(24),
+        color: theme.quickActions.backgroundColor,
+        elevation: theme.quickActions.elevation,
+        borderRadius: BorderRadius.circular(theme.quickActions.borderRadius),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               _QuickButton(
+                theme: theme,
                 tooltip: 'Duplicate',
                 icon: Icons.copy,
                 onPressed: onDuplicate,
               ),
               _QuickButton(
+                theme: theme,
                 tooltip: 'Delete',
                 icon: Icons.delete,
                 onPressed: onDelete,
               ),
               _QuickButton(
+                theme: theme,
                 tooltip: 'More',
                 icon: Icons.more_horiz,
                 onPressed: onMore,
@@ -495,11 +495,13 @@ class _ElementQuickActions extends StatelessWidget {
 
 class _QuickButton extends StatelessWidget {
   const _QuickButton({
+    required this.theme,
     required this.tooltip,
     required this.icon,
     required this.onPressed,
   });
 
+  final PosterEditorTheme theme;
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
@@ -510,20 +512,20 @@ class _QuickButton extends StatelessWidget {
       message: tooltip,
       preferBelow: false,
       verticalOffset: 34,
-      textStyle: const TextStyle(
-        color: Colors.white,
+      textStyle: TextStyle(
+        color: theme.tooltip.textColor,
         fontSize: 14,
         fontWeight: FontWeight.w700,
       ),
       decoration: BoxDecoration(
-        color: const Color(0xff111827),
+        color: theme.tooltip.backgroundColor,
         borderRadius: BorderRadius.circular(12),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: IconButton(
         iconSize: 22,
         constraints: const BoxConstraints.tightFor(width: 42, height: 42),
-        color: Colors.white,
+        color: theme.quickActions.iconColor,
         onPressed: onPressed,
         icon: Icon(icon),
       ),
@@ -628,6 +630,7 @@ class _ImageElementView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     final fit = switch (element.fit) {
       PosterImageFit.cover => BoxFit.cover,
       PosterImageFit.contain => BoxFit.contain,
@@ -639,10 +642,10 @@ class _ImageElementView extends StatelessWidget {
         decoration: BoxDecoration(
           color: element.fit == PosterImageFit.contain && element.bytes != null
               ? Colors.transparent
-              : const Color(0xffe5e7eb),
+              : theme.imagePlaceholder.backgroundColor,
         ),
         child: element.bytes == null
-            ? const _ImagePlaceholder()
+            ? _ImagePlaceholder(imagePlaceholder: theme.imagePlaceholder)
             : Image.memory(element.bytes!, fit: fit),
       ),
     );
@@ -650,12 +653,18 @@ class _ImageElementView extends StatelessWidget {
 }
 
 class _ImagePlaceholder extends StatelessWidget {
-  const _ImagePlaceholder();
+  const _ImagePlaceholder({required this.imagePlaceholder});
+
+  final PosterImagePlaceholderTheme imagePlaceholder;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Icon(Icons.pets, color: Color(0xff6b7280), size: 96),
+    return Center(
+      child: Icon(
+        Icons.pets,
+        color: imagePlaceholder.iconColor,
+        size: imagePlaceholder.iconSize,
+      ),
     );
   }
 }
@@ -734,6 +743,7 @@ class _ResizeHandle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanStart: (_) {},
@@ -741,16 +751,13 @@ class _ResizeHandle extends StatelessWidget {
       onPanEnd: (_) => onEnd(),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xff2563eb), width: 2),
+          color: theme.handles.backgroundColor,
+          border: Border.all(
+            color: theme.handles.borderColor,
+            width: theme.handles.borderWidth,
+          ),
           shape: BoxShape.circle,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x24000000),
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
-          ],
+          boxShadow: [theme.handles.boxShadow],
         ),
       ),
     );
@@ -779,6 +786,7 @@ class _RotateHandleState extends State<_RotateHandle> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onPanStart: (details) {
@@ -802,21 +810,18 @@ class _RotateHandleState extends State<_RotateHandle> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
-          border: Border.all(color: const Color(0xff2563eb), width: 2),
+          color: theme.handles.backgroundColor,
+          border: Border.all(
+            color: theme.handles.borderColor,
+            width: theme.handles.borderWidth,
+          ),
           shape: BoxShape.circle,
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x24000000),
-              blurRadius: 8,
-              offset: Offset(0, 3),
-            ),
-          ],
+          boxShadow: [theme.handles.boxShadow],
         ),
-        child: const Icon(
+        child: Icon(
           Icons.rotate_right,
           size: 22,
-          color: Color(0xff2563eb),
+          color: theme.handles.rotateIconColor,
         ),
       ),
     );

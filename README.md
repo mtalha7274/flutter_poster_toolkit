@@ -27,7 +27,7 @@ class PosterScreen extends StatefulWidget {
   State<PosterScreen> createState() => _PosterScreenState();
 }
 
-class _PosterScreenState extends State<PosterScreen> {
+class _PosterScreenState extends State<PosterScreen> {/
   final controller = PosterController();
 
   @override

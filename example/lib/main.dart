@@ -50,6 +50,7 @@ class _PosterExampleAppState extends State<PosterExampleApp> {
           controller: _controller,
           onPickImage: _pickImage,
           onExportPng: _savePng,
+          theme: PosterEditorTheme(),
         ),
       ),
     );

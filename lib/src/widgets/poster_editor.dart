@@ -8,12 +8,11 @@ import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../controller/poster_controller.dart';
 import '../models/poster_document.dart';
 import '../models/poster_element.dart';
+import '../theme/poster_editor_theme.dart';
 import 'poster_canvas.dart';
 
 typedef PosterImagePicker = Future<Uint8List?> Function();
 typedef PosterExportCallback = Future<void> Function(PosterExportResult result);
-
-const _toolbarColor = Color(0xff111827);
 
 class PosterEditor extends StatefulWidget {
   const PosterEditor({
@@ -22,12 +21,14 @@ class PosterEditor extends StatefulWidget {
     this.initialDocument,
     this.onPickImage,
     this.onExportPng,
+    this.theme = const PosterEditorTheme(),
   });
 
   final PosterController? controller;
   final PosterDocument? initialDocument;
   final PosterImagePicker? onPickImage;
   final PosterExportCallback? onExportPng;
+  final PosterEditorTheme theme;
 
   @override
   State<PosterEditor> createState() => _PosterEditorState();
@@ -62,36 +63,44 @@ class _PosterEditorState extends State<PosterEditor> {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
-        systemNavigationBarColor: _toolbarColor,
-        systemNavigationBarDividerColor: _toolbarColor,
-        systemNavigationBarIconBrightness: Brightness.light,
-      ),
-      child: Focus(
-        autofocus: true,
-        focusNode: _focusNode,
-        onKeyEvent: _handleKeyEvent,
-        child: AnimatedBuilder(
-          animation: controller,
-          builder: (context, _) {
-            return Material(
-              color: const Color(0xfff6f7fb),
-              child: Column(
-                children: [
-                  Expanded(
-                    child: SafeArea(bottom: false, child: _buildCanvasStage()),
-                  ),
-                  _Toolbar(
-                    controller: controller,
-                    onAddImage: _addImage,
-                    onExport: _exportPng,
-                    onProperties: _showPropertiesSheet,
-                  ),
-                ],
-              ),
-            );
-          },
+    final theme = widget.theme;
+    return PosterEditorThemeScope(
+      theme: theme,
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: SystemUiOverlayStyle(
+          systemNavigationBarColor: theme.toolbar.backgroundColor,
+          systemNavigationBarDividerColor: theme.toolbar.backgroundColor,
+          systemNavigationBarIconBrightness: Brightness.light,
+        ),
+        child: Focus(
+          autofocus: true,
+          focusNode: _focusNode,
+          onKeyEvent: _handleKeyEvent,
+          child: AnimatedBuilder(
+            animation: controller,
+            builder: (context, _) {
+              return Material(
+                color: theme.stage.scaffoldBackgroundColor,
+                child: Column(
+                  children: [
+                    Expanded(
+                      child: SafeArea(
+                        bottom: false,
+                        child: _buildCanvasStage(theme),
+                      ),
+                    ),
+                    _Toolbar(
+                      theme: theme,
+                      controller: controller,
+                      onAddImage: _addImage,
+                      onExport: _exportPng,
+                      onProperties: _showPropertiesSheet,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -138,7 +147,7 @@ class _PosterEditorState extends State<PosterEditor> {
   }
 
   Future<Size> _sizeForImage(Uint8List bytes) async {
-    const maxSize = Size(260, 220);
+    final maxSize = widget.theme.imports.maxImageSize;
     try {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
@@ -164,15 +173,18 @@ class _PosterEditorState extends State<PosterEditor> {
     if (controller.selectedElement == null) {
       return;
     }
+    final theme = widget.theme;
     await showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
       useSafeArea: true,
       isScrollControlled: true,
-      backgroundColor: const Color(0xfff8fafc),
+      backgroundColor: theme.properties.sheetBackgroundColor,
       clipBehavior: Clip.antiAlias,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(theme.properties.topCornerRadius),
+        ),
       ),
       builder: (context) {
         final screenHeight = MediaQuery.sizeOf(context).height;
@@ -181,32 +193,36 @@ class _PosterEditorState extends State<PosterEditor> {
             .clamp(0.25, 1.0)
             .toDouble();
         final minChildSize = math.min(0.32, maxChildSize);
-        return DraggableScrollableSheet(
-          expand: false,
-          initialChildSize: maxChildSize,
-          maxChildSize: maxChildSize,
-          minChildSize: minChildSize,
-          builder: (context, scrollController) {
-            return AnimatedBuilder(
-              animation: controller,
-              builder: (context, _) => _PropertiesPanel(
-                controller: controller,
-                scrollController: scrollController,
-              ),
-            );
-          },
+        return PosterEditorThemeScope(
+          theme: theme,
+          child: DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: maxChildSize,
+            maxChildSize: maxChildSize,
+            minChildSize: minChildSize,
+            builder: (context, scrollController) {
+              return AnimatedBuilder(
+                animation: controller,
+                builder: (context, _) => _PropertiesPanel(
+                  controller: controller,
+                  scrollController: scrollController,
+                ),
+              );
+            },
+          ),
         );
       },
     );
   }
 
-  Widget _buildCanvasStage() {
+  Widget _buildCanvasStage(PosterEditorTheme theme) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final canvasSize = controller.document.canvasSize;
+        final inset = theme.stage.canvasInset;
         final availableSize = Size(
-          math.max(120, constraints.maxWidth - 8),
-          math.max(120, constraints.maxHeight - 8),
+          math.max(120, constraints.maxWidth - inset),
+          math.max(120, constraints.maxHeight - inset),
         );
         final scale = math.min(
           availableSize.width / canvasSize.width,
@@ -217,12 +233,12 @@ class _PosterEditorState extends State<PosterEditor> {
           canvasSize.height * scale,
         );
         return Container(
-          color: const Color(0xfff6f7fb),
+          color: theme.stage.scaffoldBackgroundColor,
           child: GestureDetector(
             behavior: HitTestBehavior.translucent,
             onTap: () => controller.select(null),
             child: CustomPaint(
-              painter: const _StageDotsPainter(),
+              painter: _StageDotsPainter(stage: theme.stage),
               child: Stack(
                 fit: StackFit.expand,
                 clipBehavior: Clip.none,
@@ -261,34 +277,39 @@ class _PosterEditorState extends State<PosterEditor> {
 }
 
 class _StageDotsPainter extends CustomPainter {
-  const _StageDotsPainter();
+  const _StageDotsPainter({required this.stage});
+
+  final PosterStageTheme stage;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const spacing = 24.0;
+    final spacing = stage.dotSpacing;
     final paint = Paint()
-      ..color = const Color(0xffd6dae3)
+      ..color = stage.dotColor
       ..style = PaintingStyle.fill;
 
     for (var y = spacing / 2; y < size.height; y += spacing) {
       for (var x = spacing / 2; x < size.width; x += spacing) {
-        canvas.drawCircle(Offset(x, y), 1.15, paint);
+        canvas.drawCircle(Offset(x, y), stage.dotRadius, paint);
       }
     }
   }
 
   @override
-  bool shouldRepaint(covariant _StageDotsPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _StageDotsPainter oldDelegate) =>
+      oldDelegate.stage != stage;
 }
 
 class _Toolbar extends StatelessWidget {
   const _Toolbar({
+    required this.theme,
     required this.controller,
     required this.onAddImage,
     required this.onExport,
     required this.onProperties,
   });
 
+  final PosterEditorTheme theme;
   final PosterController controller;
   final VoidCallback onAddImage;
   final VoidCallback onExport;
@@ -297,50 +318,60 @@ class _Toolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: _toolbarColor,
+      color: theme.toolbar.backgroundColor,
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 78,
+          height: theme.toolbar.height,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+            padding: EdgeInsets.symmetric(
+              horizontal: theme.toolbar.horizontalPadding,
+              vertical: theme.toolbar.verticalPadding,
+            ),
             child: Row(
               children: [
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Text',
                   icon: Icons.title,
                   onPressed: () => controller.addText(),
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Image',
                   icon: Icons.image,
                   onPressed: onAddImage,
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Rectangle',
                   icon: Icons.crop_square,
                   onPressed: () =>
                       controller.addShape(PosterShapeType.rectangle),
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Circle',
                   icon: Icons.circle_outlined,
                   onPressed: () => controller.addShape(PosterShapeType.circle),
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Line',
                   icon: Icons.horizontal_rule,
                   onPressed: () => controller.addShape(PosterShapeType.line),
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Add Triangle',
                   icon: Icons.change_history,
                   onPressed: () =>
                       controller.addShape(PosterShapeType.triangle),
                 ),
-                const _ToolbarDivider(),
+                _ToolbarDivider(theme: theme),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Properties',
                   icon: Icons.tune,
                   onPressed: controller.selectedElement == null
@@ -348,6 +379,7 @@ class _Toolbar extends StatelessWidget {
                       : onProperties,
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Duplicate',
                   icon: Icons.copy,
                   onPressed: controller.selectedElement == null
@@ -355,25 +387,29 @@ class _Toolbar extends StatelessWidget {
                       : controller.duplicateSelected,
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Delete',
                   icon: Icons.delete,
                   onPressed: controller.selectedElement == null
                       ? null
                       : controller.deleteSelected,
                 ),
-                const _ToolbarDivider(),
+                _ToolbarDivider(theme: theme),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Undo',
                   icon: Icons.undo,
                   onPressed: controller.canUndo ? controller.undo : null,
                 ),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Redo',
                   icon: Icons.redo,
                   onPressed: controller.canRedo ? controller.redo : null,
                 ),
-                const _ToolbarDivider(),
+                _ToolbarDivider(theme: theme),
                 _ToolButton(
+                  theme: theme,
                   tooltip: 'Export PNG',
                   icon: Icons.download,
                   onPressed: onExport,
@@ -388,26 +424,32 @@ class _Toolbar extends StatelessWidget {
 }
 
 class _ToolbarDivider extends StatelessWidget {
-  const _ToolbarDivider();
+  const _ToolbarDivider({required this.theme});
+
+  final PosterEditorTheme theme;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 1,
-      height: 48,
-      margin: const EdgeInsets.symmetric(horizontal: 8),
-      color: const Color(0x33ffffff),
+      width: theme.toolbar.dividerWidth,
+      height: theme.toolbar.dividerHeight,
+      margin: EdgeInsets.symmetric(
+        horizontal: theme.toolbar.dividerHorizontalMargin,
+      ),
+      color: theme.toolbar.dividerColor,
     );
   }
 }
 
 class _ToolButton extends StatelessWidget {
   const _ToolButton({
+    required this.theme,
     required this.tooltip,
     required this.icon,
     required this.onPressed,
   });
 
+  final PosterEditorTheme theme;
   final String tooltip;
   final IconData icon;
   final VoidCallback? onPressed;
@@ -415,28 +457,34 @@ class _ToolButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.toolbar.toolButtonHorizontalPadding,
+      ),
       child: Tooltip(
         message: tooltip,
         preferBelow: false,
         verticalOffset: 30,
-        textStyle: const TextStyle(
-          color: Colors.white,
+        textStyle: TextStyle(
+          color: theme.tooltip.textColor,
           fontSize: 14,
           fontWeight: FontWeight.w700,
         ),
         decoration: BoxDecoration(
-          color: const Color(0xff111827),
+          color: theme.tooltip.backgroundColor,
           borderRadius: BorderRadius.circular(12),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: IconButton.filledTonal(
           style: IconButton.styleFrom(
-            backgroundColor: const Color(0xff1f2937),
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: const Color(0xff1f2937),
-            disabledForegroundColor: const Color(0xff6b7280),
-            fixedSize: const Size(50, 50),
+            backgroundColor: theme.toolbar.toolButtonBackgroundColor,
+            foregroundColor: theme.toolbar.toolButtonForegroundColor,
+            disabledBackgroundColor: theme.toolbar.toolButtonBackgroundColor,
+            disabledForegroundColor:
+                theme.toolbar.toolButtonDisabledForegroundColor,
+            fixedSize: Size(
+              theme.toolbar.toolButtonSize,
+              theme.toolbar.toolButtonSize,
+            ),
           ),
           icon: Icon(icon),
           onPressed: onPressed,
@@ -454,38 +502,51 @@ class _PropertiesPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     final element = controller.selectedElement;
     return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xfff8fafc),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: theme.properties.panelBackgroundColor,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(theme.properties.topCornerRadius),
+        ),
       ),
       child: element == null
-          ? const Center(
+          ? Center(
               child: Text(
                 'No element selected',
-                style: TextStyle(color: Color(0xff6b7280)),
+                style: TextStyle(color: theme.properties.emptyTextColor),
               ),
             )
           : ListView(
               controller: scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              padding: EdgeInsets.fromLTRB(
+                theme.properties.listHorizontalPadding,
+                0,
+                theme.properties.listHorizontalPadding,
+                theme.properties.listBottomPadding,
+              ),
               children: [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: Container(
-                    width: 44,
-                    height: 44,
+                    width: theme.properties.headerLeadingSize,
+                    height: theme.properties.headerLeadingSize,
                     decoration: BoxDecoration(
-                      color: const Color(0xff111827),
-                      borderRadius: BorderRadius.circular(12),
+                      color: theme.properties.headerIconBackgroundColor,
+                      borderRadius: BorderRadius.circular(
+                        theme.properties.headerLeadingRadius,
+                      ),
                     ),
-                    child: Icon(_iconFor(element), color: Colors.white),
+                    child: Icon(
+                      _iconFor(element),
+                      color: theme.properties.headerIconForegroundColor,
+                    ),
                   ),
                   title: Text(
                     _titleFor(element),
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: const Color(0xff111827),
+                      color: theme.properties.titleTextColor,
                       fontWeight: FontWeight.w700,
                     ),
                   ),
@@ -493,9 +554,12 @@ class _PropertiesPanel extends StatelessWidget {
                   trailing: IconButton.filledTonal(
                     tooltip: element.locked ? 'Unlock' : 'Lock',
                     style: IconButton.styleFrom(
-                      fixedSize: const Size(44, 44),
-                      backgroundColor: const Color(0xffe5e7eb),
-                      foregroundColor: const Color(0xff111827),
+                      fixedSize: Size(
+                        theme.properties.lockButtonSize,
+                        theme.properties.lockButtonSize,
+                      ),
+                      backgroundColor: theme.properties.lockButtonBackgroundColor,
+                      foregroundColor: theme.properties.lockButtonForegroundColor,
                     ),
                     onPressed: controller.toggleSelectedLock,
                     icon: Icon(element.locked ? Icons.lock : Icons.lock_open),
@@ -603,20 +667,15 @@ class _PropertySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(16),
+      margin: EdgeInsets.only(bottom: theme.propertyCard.sectionSpacing),
+      padding: EdgeInsets.all(theme.propertyCard.innerPadding),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xffe5e7eb)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
+        color: theme.propertyCard.backgroundColor,
+        borderRadius: BorderRadius.circular(theme.propertyCard.borderRadius),
+        border: Border.all(color: theme.propertyCard.borderColor),
+        boxShadow: [theme.propertyCard.boxShadow],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -624,7 +683,7 @@ class _PropertySection extends StatelessWidget {
           Text(
             title,
             style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: const Color(0xff374151),
+              color: theme.propertyCard.sectionTitleColor,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -649,12 +708,15 @@ class _LayerButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return FilledButton.tonalIcon(
       style: FilledButton.styleFrom(
-        minimumSize: const Size(116, 46),
-        backgroundColor: const Color(0xfff3f4f6),
-        foregroundColor: const Color(0xff111827),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        minimumSize: Size(theme.layerButton.minWidth, theme.layerButton.height),
+        backgroundColor: theme.layerButton.backgroundColor,
+        foregroundColor: theme.layerButton.foregroundColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(theme.layerButton.borderRadius),
+        ),
       ),
       onPressed: onPressed,
       icon: Icon(icon),
@@ -730,15 +792,24 @@ class _TogglePropertyButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return OutlinedButton.icon(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(44),
-        backgroundColor: selected ? const Color(0xff111827) : Colors.white,
-        foregroundColor: selected ? Colors.white : const Color(0xff111827),
+        minimumSize: Size.fromHeight(theme.toggleButton.minHeight),
+        backgroundColor: selected
+            ? theme.toggleButton.selectedBackgroundColor
+            : theme.toggleButton.unselectedBackgroundColor,
+        foregroundColor: selected
+            ? theme.toggleButton.selectedForegroundColor
+            : theme.toggleButton.unselectedForegroundColor,
         side: BorderSide(
-          color: selected ? const Color(0xff111827) : const Color(0xffd1d5db),
+          color: selected
+              ? theme.toggleButton.selectedBackgroundColor
+              : theme.toggleButton.unselectedBorderColor,
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(theme.toggleButton.borderRadius),
+        ),
       ),
       onPressed: onPressed,
       icon: RotatedBox(quarterTurns: iconTurns, child: Icon(icon)),
@@ -755,6 +826,7 @@ class _TextProperties extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -769,7 +841,7 @@ class _TextProperties extends StatelessWidget {
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           initialValue: element.fontFamily,
-          decoration: _posterInputDecoration('Font family'),
+          decoration: posterInputDecoration(theme.input, 'Font family'),
           items:
               const [
                     'Roboto',
@@ -800,7 +872,7 @@ class _TextProperties extends StatelessWidget {
         const SizedBox(height: 12),
         DropdownButtonFormField<FontWeight>(
           initialValue: element.fontWeight,
-          decoration: _posterInputDecoration('Weight'),
+          decoration: posterInputDecoration(theme.input, 'Weight'),
           items: const [
             DropdownMenuItem(value: FontWeight.normal, child: Text('Regular')),
             DropdownMenuItem(value: FontWeight.w600, child: Text('Semi bold')),
@@ -843,7 +915,7 @@ class _TextProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<TextAlign>(
           initialValue: element.alignment,
-          decoration: _posterInputDecoration('Alignment'),
+          decoration: posterInputDecoration(theme.input, 'Alignment'),
           items: const [
             DropdownMenuItem(value: TextAlign.left, child: Text('Left')),
             DropdownMenuItem(value: TextAlign.center, child: Text('Center')),
@@ -876,6 +948,7 @@ class _ImageProperties extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return Column(
       children: [
         _SliderProperty(
@@ -888,7 +961,7 @@ class _ImageProperties extends StatelessWidget {
         ),
         DropdownButtonFormField<PosterImageFit>(
           initialValue: element.fit,
-          decoration: _posterInputDecoration('Fit'),
+          decoration: posterInputDecoration(theme.input, 'Fit'),
           items: const [
             DropdownMenuItem(value: PosterImageFit.cover, child: Text('Cover')),
             DropdownMenuItem(
@@ -1001,6 +1074,7 @@ class _ColorProperty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return ListTile(
       contentPadding: EdgeInsets.zero,
       minVerticalPadding: 10,
@@ -1009,22 +1083,31 @@ class _ColorProperty extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: () async {
           final pickerColor = color.a == 0 ? const Color(0xffff8a00) : color;
+          final sheetTheme = PosterEditorThemeScope.of(context);
           final nextColor = await showDialog<Color>(
             context: context,
-            builder: (context) =>
-                _HexColorPickerDialog(label: label, initialColor: pickerColor),
+            builder: (context) => PosterEditorThemeScope(
+              theme: sheetTheme,
+              child: _HexColorPickerDialog(
+                label: label,
+                initialColor: pickerColor,
+              ),
+            ),
           );
           if (nextColor != null) {
             onChanged(nextColor);
           }
         },
         child: Container(
-          width: 44,
-          height: 44,
+          width: theme.colorSwatch.size,
+          height: theme.colorSwatch.size,
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
-            border: Border.all(color: const Color(0xffe5e7eb), width: 2),
+            border: Border.all(
+              color: theme.colorSwatch.borderColor,
+              width: theme.colorSwatch.borderWidth,
+            ),
           ),
         ),
       ),
@@ -1064,6 +1147,7 @@ class _HexColorPickerDialogState extends State<_HexColorPickerDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return AlertDialog(
       title: Text(widget.label),
       content: SingleChildScrollView(
@@ -1086,7 +1170,8 @@ class _HexColorPickerDialogState extends State<_HexColorPickerDialog> {
             ),
             TextField(
               controller: _hexController,
-              decoration: _posterInputDecoration(
+              decoration: posterInputDecoration(
+                theme.input,
                 'Hex color (#RRGGBB or #AARRGGBB)',
               ),
               textCapitalization: TextCapitalization.characters,
@@ -1135,6 +1220,7 @@ class _SliderProperty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = PosterEditorThemeScope.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1144,7 +1230,7 @@ class _SliderProperty extends StatelessWidget {
             const Spacer(),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(0xfff3f4f6),
+                color: theme.slider.valueChipBackgroundColor,
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Padding(
@@ -1162,8 +1248,12 @@ class _SliderProperty extends StatelessWidget {
         ),
         SliderTheme(
           data: SliderTheme.of(context).copyWith(
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+            thumbShape: RoundSliderThumbShape(
+              enabledThumbRadius: theme.slider.thumbRadius,
+            ),
+            overlayShape: RoundSliderOverlayShape(
+              overlayRadius: theme.slider.overlayRadius,
+            ),
           ),
           child: Slider(
             value: value.clamp(min, max),
@@ -1175,29 +1265,6 @@ class _SliderProperty extends StatelessWidget {
       ],
     );
   }
-}
-
-InputDecoration _posterInputDecoration(String hintText) {
-  const borderRadius = BorderRadius.all(Radius.circular(14));
-  const borderSide = BorderSide(color: Color(0xffd1d5db));
-  return const InputDecoration(
-    filled: true,
-    fillColor: Color(0xfff9fafb),
-    hintStyle: TextStyle(color: Color(0xff9ca3af)),
-    contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-    border: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: borderSide,
-    ),
-    enabledBorder: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: borderSide,
-    ),
-    focusedBorder: OutlineInputBorder(
-      borderRadius: borderRadius,
-      borderSide: BorderSide(color: Color(0xff2563eb), width: 1.6),
-    ),
-  ).copyWith(hintText: hintText);
 }
 
 String _hexFromColor(Color color) {
