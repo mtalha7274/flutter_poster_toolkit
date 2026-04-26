@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
-import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_poster/flutter_poster.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:image_picker/image_picker.dart';
 
 void main() {
@@ -61,11 +61,10 @@ class _PosterExampleAppState extends State<PosterExampleApp> {
   }
 
   Future<void> _savePng(PosterExportResult result) async {
-    await FileSaver.instance.saveFile(
-      name: 'lost-cat-poster',
-      bytes: result.bytes,
-      fileExtension: 'png',
-      mimeType: MimeType.png,
+    await ImageGallerySaverPlus.saveImage(
+      result.bytes,
+      quality: 100,
+      name: 'poster_${DateTime.now().millisecondsSinceEpoch}',
     );
   }
 }
