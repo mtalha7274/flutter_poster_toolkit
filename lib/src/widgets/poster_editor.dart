@@ -758,15 +758,6 @@ class _TextProperties extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextFormField(
-          key: ValueKey('text-${element.id}'),
-          initialValue: element.text,
-          minLines: 2,
-          maxLines: 4,
-          decoration: _posterInputDecoration('Content'),
-          onChanged: (value) =>
-              controller.updateElement(element.copyWith(text: value)),
-        ),
         _SliderProperty(
           label: 'Font size',
           value: element.fontSize,

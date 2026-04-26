@@ -242,6 +242,40 @@ void main() {
     expect(controller.selectedElement!.position.dy, greaterThan(before.dy));
   });
 
+  testWidgets('second tap on selected text edits it inline', (tester) async {
+    final controller = PosterController();
+    final text = controller.addText(text: 'Edit me');
+    controller.select(null);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Align(
+          alignment: Alignment.topLeft,
+          child: PosterCanvas(controller: controller),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final tapPoint =
+        text.position + Offset(text.size.width / 2, text.size.height / 2);
+    await tester.tapAt(tapPoint);
+    await tester.pumpAndSettle();
+
+    expect(controller.selectedElementId, text.id);
+    expect(find.byType(TextField), findsNothing);
+
+    await tester.tapAt(tapPoint);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(TextField), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'Inline edit');
+    await tester.pumpAndSettle();
+
+    expect((controller.selectedElement! as TextElement).text, 'Inline edit');
+  });
+
   testWidgets('selected element rotate handle changes rotation', (
     tester,
   ) async {

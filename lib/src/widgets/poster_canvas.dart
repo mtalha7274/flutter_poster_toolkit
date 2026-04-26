@@ -82,6 +82,15 @@ class PosterCanvas extends StatelessWidget {
                         controller.select(element.id);
                       },
                       onMove: controller.moveSelected,
+                      onTextChanged: (value) {
+                        final selected = controller.selectedElement;
+                        if (selected is TextElement) {
+                          controller.updateElement(
+                            selected.copyWith(text: value),
+                            recordHistory: false,
+                          );
+                        }
+                      },
                       onEnd: controller.endInteraction,
                     ),
                 if (showEditorChrome && selectedElement != null)
@@ -146,6 +155,7 @@ class _ElementLayer extends StatefulWidget {
     required this.interactionScale,
     required this.onSelect,
     required this.onMove,
+    required this.onTextChanged,
     required this.onEnd,
   });
 
@@ -155,6 +165,7 @@ class _ElementLayer extends StatefulWidget {
   final double interactionScale;
   final VoidCallback onSelect;
   final ValueChanged<Offset> onMove;
+  final ValueChanged<String> onTextChanged;
   final VoidCallback onEnd;
 
   @override
@@ -166,9 +177,36 @@ class _ElementLayerState extends State<_ElementLayer> {
   /// pointer movement into the child's local space, so [DragUpdateDetails.delta]
   /// does not match how [PosterElement.position] (top-left in canvas) should move.
   Offset? _lastGlobal;
+  TextEditingController? _textController;
+  FocusNode? _textFocusNode;
+  bool _editingText = false;
+
+  @override
+  void didUpdateWidget(covariant _ElementLayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.selected && _editingText) {
+      _editingText = false;
+    }
+    final element = widget.element;
+    final controller = _textController;
+    if (element is TextElement &&
+        controller != null &&
+        controller.text != element.text &&
+        _textFocusNode?.hasFocus != true) {
+      controller.text = element.text;
+    }
+  }
+
+  @override
+  void dispose() {
+    _textController?.dispose();
+    _textFocusNode?.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final canDrag = widget.selected && !widget.element.locked && !_editingText;
     return Positioned(
       left: widget.element.position.dx,
       top: widget.element.position.dy,
@@ -178,14 +216,14 @@ class _ElementLayerState extends State<_ElementLayer> {
         angle: widget.element.rotation,
         child: GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: widget.onSelect,
-          onPanStart: !widget.selected || widget.element.locked
+          onTap: _handleTap,
+          onPanStart: !canDrag
               ? null
               : (details) {
                   widget.onSelect();
                   _lastGlobal = details.globalPosition;
                 },
-          onPanUpdate: !widget.selected || widget.element.locked
+          onPanUpdate: !canDrag
               ? null
               : (details) {
                   final last = _lastGlobal;
@@ -196,13 +234,13 @@ class _ElementLayerState extends State<_ElementLayer> {
                   final canvasDelta = details.globalPosition - last;
                   widget.onMove(canvasDelta / widget.interactionScale);
                 },
-          onPanEnd: !widget.selected || widget.element.locked
+          onPanEnd: !canDrag
               ? null
               : (_) {
                   _lastGlobal = null;
                   widget.onEnd();
                 },
-          onPanCancel: !widget.selected || widget.element.locked
+          onPanCancel: !canDrag
               ? null
               : () {
                   _lastGlobal = null;
@@ -210,13 +248,32 @@ class _ElementLayerState extends State<_ElementLayer> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: 0.001,
-                    child: _PosterElementView(element: widget.element),
+              if (_editingText && widget.element is TextElement)
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.86),
+                      ),
+                    ),
                   ),
                 ),
+              Positioned.fill(
+                child: _editingText && widget.element is TextElement
+                    ? _InlineTextEditor(
+                        element: widget.element as TextElement,
+                        controller: _ensureTextController(
+                          widget.element as TextElement,
+                        ),
+                        focusNode: _ensureTextFocusNode(),
+                        onChanged: widget.onTextChanged,
+                      )
+                    : IgnorePointer(
+                        child: Opacity(
+                          opacity: 0.001,
+                          child: _PosterElementView(element: widget.element),
+                        ),
+                      ),
               ),
               if (widget.showSelection && widget.selected) ...[
                 Positioned.fill(
@@ -239,6 +296,51 @@ class _ElementLayerState extends State<_ElementLayer> {
         ),
       ),
     );
+  }
+
+  void _handleTap() {
+    final wasSelected = widget.selected;
+    widget.onSelect();
+    if (!wasSelected ||
+        widget.element is! TextElement ||
+        widget.element.locked) {
+      return;
+    }
+    setState(() => _editingText = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_editingText) {
+        return;
+      }
+      final focusNode = _ensureTextFocusNode();
+      focusNode.requestFocus();
+      final controller = _ensureTextController(widget.element as TextElement);
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: controller.text.length,
+      );
+    });
+  }
+
+  TextEditingController _ensureTextController(TextElement element) {
+    final controller = _textController;
+    if (controller != null) {
+      return controller;
+    }
+    return _textController = TextEditingController(text: element.text);
+  }
+
+  FocusNode _ensureTextFocusNode() {
+    final focusNode = _textFocusNode;
+    if (focusNode != null) {
+      return focusNode;
+    }
+    final nextFocusNode = FocusNode();
+    nextFocusNode.addListener(() {
+      if (!nextFocusNode.hasFocus && mounted && _editingText) {
+        setState(() => _editingText = false);
+      }
+    });
+    return _textFocusNode = nextFocusNode;
   }
 }
 
@@ -454,26 +556,69 @@ class _TextElementView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final style = GoogleFonts.getFont(
-      element.fontFamily,
-      fontSize: element.fontSize,
-      fontWeight: element.fontWeight,
-      fontStyle: element.italic ? FontStyle.italic : FontStyle.normal,
-      decoration: element.underline ? TextDecoration.underline : null,
-      color: element.color,
-      letterSpacing: element.letterSpacing,
-      height: 1.05,
-    );
     return Center(
       child: Text(
         element.text,
         textAlign: element.alignment,
         maxLines: null,
         overflow: TextOverflow.clip,
-        style: style,
+        style: _textStyleFor(element),
       ),
     );
   }
+}
+
+class _InlineTextEditor extends StatelessWidget {
+  const _InlineTextEditor({
+    required this.element,
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+  });
+
+  final TextElement element;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: TextField(
+        controller: controller,
+        focusNode: focusNode,
+        autofocus: true,
+        expands: true,
+        minLines: null,
+        maxLines: null,
+        textAlign: element.alignment,
+        textAlignVertical: TextAlignVertical.center,
+        style: _textStyleFor(element),
+        decoration: const InputDecoration(
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          isCollapsed: true,
+          contentPadding: EdgeInsets.zero,
+        ),
+        onChanged: onChanged,
+      ),
+    );
+  }
+}
+
+TextStyle _textStyleFor(TextElement element) {
+  return GoogleFonts.getFont(
+    element.fontFamily,
+    fontSize: element.fontSize,
+    fontWeight: element.fontWeight,
+    fontStyle: element.italic ? FontStyle.italic : FontStyle.normal,
+    decoration: element.underline ? TextDecoration.underline : null,
+    color: element.color,
+    letterSpacing: element.letterSpacing,
+    height: 1.05,
+  );
 }
 
 class _ImageElementView extends StatelessWidget {
