@@ -10,7 +10,7 @@ A reusable Flutter poster editor for Android and iOS apps. It includes an intera
 
 ```dart
 import 'package:flutter/material.dart';
-import 'package:flutter_poster_toolkit/flutter_poster.dart';
+import 'package:flutter_poster_toolkit/flutter_poster_toolkit.dart';
 
 class PosterScreen extends StatefulWidget {
   const PosterScreen({super.key});

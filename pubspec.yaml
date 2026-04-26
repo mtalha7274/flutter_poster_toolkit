@@ -1,7 +1,7 @@
 name: flutter_poster_toolkit
 description: A Flutter package for creating posters and flyers.
 version: 0.1.0
-homepage:
+repository: https://github.com/mtalha7274/flutter_poster_toolkit
 
 environment:
   sdk: ^3.10.3
