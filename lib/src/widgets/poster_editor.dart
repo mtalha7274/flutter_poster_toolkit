@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -129,7 +130,29 @@ class _PosterEditorState extends State<PosterEditor> {
 
   Future<void> _addImage() async {
     final bytes = await widget.onPickImage?.call();
-    controller.addImage(bytes: bytes);
+    if (bytes == null) {
+      return;
+    }
+    final size = await _sizeForImage(bytes);
+    controller.addImage(bytes: bytes, size: size);
+  }
+
+  Future<Size> _sizeForImage(Uint8List bytes) async {
+    const maxSize = Size(260, 220);
+    try {
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final aspectRatio = image.width / image.height;
+      image.dispose();
+      final maxAspectRatio = maxSize.width / maxSize.height;
+      if (aspectRatio >= maxAspectRatio) {
+        return Size(maxSize.width, maxSize.width / aspectRatio);
+      }
+      return Size(maxSize.height * aspectRatio, maxSize.height);
+    } catch (_) {
+      return maxSize;
+    }
   }
 
   Future<void> _exportPng() async {
@@ -676,6 +699,7 @@ class _CommonProperties extends StatelessWidget {
               child: _TogglePropertyButton(
                 selected: element.flipY,
                 icon: Icons.flip,
+                iconTurns: 1,
                 label: 'Flip V',
                 onPressed: () => controller.updateElement(
                   element.copyWithBase(flipY: !element.flipY),
@@ -695,12 +719,14 @@ class _TogglePropertyButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onPressed,
+    this.iconTurns = 0,
   });
 
   final bool selected;
   final IconData icon;
   final String label;
   final VoidCallback onPressed;
+  final int iconTurns;
 
   @override
   Widget build(BuildContext context) {
@@ -715,7 +741,7 @@ class _TogglePropertyButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
       onPressed: onPressed,
-      icon: Icon(icon),
+      icon: RotatedBox(quarterTurns: iconTurns, child: Icon(icon)),
       label: Text(label),
     );
   }
@@ -733,7 +759,7 @@ class _TextProperties extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextFormField(
-          key: ValueKey('text-${element.id}-${element.text}'),
+          key: ValueKey('text-${element.id}'),
           initialValue: element.text,
           minLines: 2,
           maxLines: 4,
@@ -992,34 +1018,14 @@ class _ColorProperty extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: () async {
           final pickerColor = color.a == 0 ? const Color(0xffff8a00) : color;
-          var nextColor = pickerColor;
-          await showDialog<void>(
+          final nextColor = await showDialog<Color>(
             context: context,
-            builder: (context) => AlertDialog(
-              title: Text(label),
-              content: SingleChildScrollView(
-                child: ColorPicker(
-                  pickerColor: pickerColor,
-                  onColorChanged: (value) => nextColor = value,
-                  enableAlpha: true,
-                  displayThumbColor: true,
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: () {
-                    onChanged(nextColor);
-                    Navigator.of(context).pop();
-                  },
-                  child: const Text('Apply'),
-                ),
-              ],
-            ),
+            builder: (context) =>
+                _HexColorPickerDialog(label: label, initialColor: pickerColor),
           );
+          if (nextColor != null) {
+            onChanged(nextColor);
+          }
         },
         child: Container(
           width: 44,
@@ -1031,6 +1037,92 @@ class _ColorProperty extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _HexColorPickerDialog extends StatefulWidget {
+  const _HexColorPickerDialog({
+    required this.label,
+    required this.initialColor,
+  });
+
+  final String label;
+  final Color initialColor;
+
+  @override
+  State<_HexColorPickerDialog> createState() => _HexColorPickerDialogState();
+}
+
+class _HexColorPickerDialogState extends State<_HexColorPickerDialog> {
+  late Color _color;
+  late final TextEditingController _hexController;
+
+  @override
+  void initState() {
+    super.initState();
+    _color = widget.initialColor;
+    _hexController = TextEditingController(text: _hexFromColor(_color));
+  }
+
+  @override
+  void dispose() {
+    _hexController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.label),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ColorPicker(
+              pickerColor: _color,
+              onColorChanged: (value) {
+                setState(() {
+                  _color = value;
+                  _hexController.text = _hexFromColor(value);
+                  _hexController.selection = TextSelection.collapsed(
+                    offset: _hexController.text.length,
+                  );
+                });
+              },
+              enableAlpha: true,
+              displayThumbColor: true,
+            ),
+            TextField(
+              controller: _hexController,
+              decoration: _posterInputDecoration(
+                'Hex color (#RRGGBB or #AARRGGBB)',
+              ),
+              textCapitalization: TextCapitalization.characters,
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp('[0-9a-fA-F#]')),
+              ],
+              onChanged: (value) {
+                final parsed = _tryParseHexColor(value);
+                if (parsed == null) {
+                  return;
+                }
+                setState(() => _color = parsed);
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_color),
+          child: const Text('Apply'),
+        ),
+      ],
     );
   }
 }
@@ -1115,4 +1207,31 @@ InputDecoration _posterInputDecoration(String hintText) {
       borderSide: BorderSide(color: Color(0xff2563eb), width: 1.6),
     ),
   ).copyWith(hintText: hintText);
+}
+
+String _hexFromColor(Color color) {
+  final argb = color.toARGB32();
+  final alpha = (argb >> 24) & 0xff;
+  final rgb = argb & 0x00ffffff;
+  final value = alpha == 0xff ? rgb : argb;
+  final length = alpha == 0xff ? 6 : 8;
+  return '#${value.toRadixString(16).padLeft(length, '0').toUpperCase()}';
+}
+
+Color? _tryParseHexColor(String input) {
+  var hex = input.trim().replaceAll('#', '');
+  if (hex.length == 3) {
+    hex = hex.split('').map((value) => '$value$value').join();
+  }
+  if (hex.length == 6) {
+    hex = 'ff$hex';
+  }
+  if (hex.length != 8) {
+    return null;
+  }
+  final value = int.tryParse(hex, radix: 16);
+  if (value == null) {
+    return null;
+  }
+  return Color(value);
 }

@@ -491,7 +491,11 @@ class _ImageElementView extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(element.cornerRadius),
       child: DecoratedBox(
-        decoration: const BoxDecoration(color: Color(0xffe5e7eb)),
+        decoration: BoxDecoration(
+          color: element.fit == PosterImageFit.contain && element.bytes != null
+              ? Colors.transparent
+              : const Color(0xffe5e7eb),
+        ),
         child: element.bytes == null
             ? const _ImagePlaceholder()
             : Image.memory(element.bytes!, fit: fit),

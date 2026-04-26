@@ -86,6 +86,7 @@ class PosterController extends ChangeNotifier {
     Uint8List? bytes,
     Offset position = const Offset(80, 160),
     Size size = const Size(260, 220),
+    PosterImageFit fit = PosterImageFit.cover,
   }) {
     final element = ImageElement(
       id: _uuid.v4(),
@@ -93,6 +94,7 @@ class PosterController extends ChangeNotifier {
       size: size,
       bytes: bytes,
       cornerRadius: 10,
+      fit: fit,
     );
     _addElement(element);
     return element;
